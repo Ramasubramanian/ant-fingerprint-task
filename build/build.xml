@@ -1,0 +1,20 @@
+<project name="ant-fingerprint" default="build" basedir=".">
+	<property name="dest" value="${basedir}/dist"/>
+	<property name="dest.classes" value="${dest}/classes"/>	
+
+  <target name="clean">
+	<delete includeemptydirs="true">
+    	<fileset dir="${dest}" includes="**/*"/>
+  	</delete>
+  </target>
+	
+  <target name="build" depends="clean">
+	<mkdir dir="${dest}"/>
+	<mkdir dir="${dest.classes}"/>    
+    <javac classpath="../lib/ant.jar" srcdir="../src" destdir="${dest.classes}"/>
+	<jar jarfile="${dest}/ant-fingerprint.jar">
+		<fileset dir="${dest.classes}"/>
+	</jar>    
+  </target>
+  
+</project>
