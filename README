@@ -1,5 +1,7 @@
-Custom ANT task to fingerprint static resources like CSS, JS, Image files etc. with file checksums to enable dynamic caching in web-servers as described in
-https://developers.google.com/speed/docs/best-practices/caching, the task will take of reverting file changes and resource name changes back to original after child tasks like WAR, static content TAR creation is completed
+Custom ANT task to fingerprint static resources like CSS, JS, Image files etc. with CRC-32 file checksum to enable dynamic caching
+in web-servers as described in https://developers.google.com/speed/docs/best-practices/caching,
+the task will take care of reverting file changes and resource name changes back to original after executing child tasks
+like WAR, static content TAR creation etc.
 
 Declaration in build.xml
 
@@ -9,7 +11,7 @@ Declaration in build.xml
 Usage in tasks
 
         <target name="execute" depends="declare">
-                <fingerprint docroot="${PROJECT_ROOT}/docroot" extensions="js,css">
+                <fingerprint docroot="${PROJECT_ROOT}/docroot" extensions="js,css" enabled="true/false">
                         <fileset dir="${PROJECT_ROOT}">
                                 <include name="...."/>
                                 <include name="...."/>
