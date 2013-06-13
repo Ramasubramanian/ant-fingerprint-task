@@ -255,12 +255,11 @@ public class FingerPrintTask extends Task implements TaskContainer {
 			link = matcher.group(2);
 			if (replaceable(link)) {
 				fileName = fileName(link);
-				replacement = fileName;
-				fPrint = fingerPrintCache.get(fileName);
+				fPrint = fingerPrintCache.get(link);
 				if (fPrint == null) {
 					resource = new File(docroot, link);
 					fPrint = new FingerPrint(fileName, checksum(resource), resource.getAbsolutePath());
-					fingerPrintCache.put(fileName, fPrint);
+					fingerPrintCache.put(link, fPrint);
 					renameResource(resource, fPrint.checkSum);
 				}
 				replacement = fPrint.checkSum + fPrint.fileName;
@@ -291,6 +290,10 @@ public class FingerPrintTask extends Task implements TaskContainer {
 	}
 
 	private String checksum(File file) throws Exception {
+        if(!file.exists()) {
+            log(String.format("File %s does not exists to generate checksum",file.getAbsolutePath()),Project.MSG_WARN);
+            return "";
+        }
 		CheckedInputStream cis = null;
 		try {
 			// Calculate the CRC-32 checksum of this file
