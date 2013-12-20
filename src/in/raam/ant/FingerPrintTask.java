@@ -68,10 +68,8 @@ public class FingerPrintTask extends Task implements TaskContainer {
 
 	private static final String FS = File.separator;
 	private static final int BUFFER_SIZE = 1024 * 8; // 8 KB
-	private static final Pattern[] PATTERNS = {
-			Pattern.compile("(<link.*?href=\")(.*?)(\".*?>)"),
-			Pattern.compile("(\")([^\\s]*?\\.js)(\")"),
-			Pattern.compile("(<img.*?src=\")(.*?)(\".*?>)"),
+	private static final Pattern[] PATTERNS = { Pattern.compile("(<link.*?href=\")(.*?)(\".*?>)"),
+			Pattern.compile("(\")([^\\s]*?\\.js)(\")"), Pattern.compile("(<img.*?src=\")(.*?)(\".*?>)"),
 			Pattern.compile("(url\\(\")(.*?)(\"\\))") };
 
 	private String docroot;
@@ -80,7 +78,7 @@ public class FingerPrintTask extends Task implements TaskContainer {
 	private List<FileSet> fileSets = new ArrayList<FileSet>();
 	private List<Task> childTasks = new ArrayList<Task>();
 	private Map<String, FingerPrint> fingerPrintCache = new HashMap<String, FingerPrint>();
-	private String fileVersion;//optional to use instead of checksum
+	private String fileVersion;// optional to use instead of checksum
 
 	public boolean isEnabled() {
 		return enabled;
@@ -119,8 +117,7 @@ public class FingerPrintTask extends Task implements TaskContainer {
 		try {
 			if (enabled) {
 				// identify used static resources and fingerprint them
-				log("Starting fingerprinting of used static resources!",
-						Project.MSG_INFO);
+				log("Starting fingerprinting of used static resources!", Project.MSG_INFO);
 				doExecute();
 				logResourceNames();
 			}
@@ -139,9 +136,7 @@ public class FingerPrintTask extends Task implements TaskContainer {
 
 	private void logResourceNames() {
 		for (FingerPrint fingerPrint : fingerPrintCache.values()) {
-			log(String.format(
-					"Fingerprinted static resource %s with checksum %s",
-					fingerPrint.absoluteName, fingerPrint.checkSum),
+			log(String.format("Fingerprinted static resource %s with checksum %s", fingerPrint.absoluteName, fingerPrint.checkSum),
 					Project.MSG_INFO);
 		}
 	}
@@ -158,8 +153,7 @@ public class FingerPrintTask extends Task implements TaskContainer {
 				dScanner = fs.getDirectoryScanner(getProject());
 				for (String fileName : dScanner.getIncludedFiles()) {
 					sourceFile = new File(dScanner.getBasedir(), fileName);
-					log("Scanning for references in file : "
-							+ sourceFile.getAbsolutePath(), Project.MSG_DEBUG);
+					log("Scanning for references in file : " + sourceFile.getAbsolutePath(), Project.MSG_DEBUG);
 					contents = contents(sourceFile);
 					length = contents.length();
 					for (Pattern pattern : PATTERNS) {
@@ -183,8 +177,7 @@ public class FingerPrintTask extends Task implements TaskContainer {
 		DirectoryScanner dScanner;
 		Map<String, String> revertMap = prepareRevertNameMapping(fingerPrintCache);
 		try {
-			log("Reverting fingerprint changes in referenced files",
-					Project.MSG_INFO);
+			log("Reverting fingerprint changes in referenced files", Project.MSG_INFO);
 			for (FileSet fs : fileSets) {
 				dScanner = fs.getDirectoryScanner(getProject());
 				for (String fileName : dScanner.getIncludedFiles()) {
@@ -198,8 +191,7 @@ public class FingerPrintTask extends Task implements TaskContainer {
 					}
 				}
 			}
-			log("Reverting fingerprint changes in resource names!",
-					Project.MSG_INFO);
+			log("Reverting fingerprint changes in resource names!", Project.MSG_INFO);
 			revertResourceNames(fingerPrintCache);
 		} catch (Exception e) {
 			throw new BuildException(e);
@@ -212,37 +204,30 @@ public class FingerPrintTask extends Task implements TaskContainer {
 		for (FingerPrint fingerPrint : fingerPrintCache.values()) {
 			newResource = new File(fingerPrint.absoluteName);
 			folder = dirname(newResource);
-			resource = new File(folder, newName(fingerPrint.checkSum,
-					fingerPrint.fileName));
-			log(String.format("Renaming file %s to %s",
-					resource.getAbsolutePath(), newResource.getAbsolutePath()),
-					Project.MSG_DEBUG);
+			resource = new File(folder, newName(fingerPrint.checkSum, fingerPrint.fileName));
+			log(String.format("Renaming file %s to %s", resource.getAbsolutePath(), newResource.getAbsolutePath()), Project.MSG_DEBUG);
 			resource.renameTo(newResource);
 			// delete old file
 			resource.delete();
 		}
 	}
 
-	private Map<String, String> prepareRevertNameMapping(
-			Map<String, FingerPrint> fingerPrintCache) {
+	private Map<String, String> prepareRevertNameMapping(Map<String, FingerPrint> fingerPrintCache) {
 		Map<String, String> retMap = new HashMap<String, String>();
 		for (FingerPrint fingerPrint : fingerPrintCache.values()) {
-			retMap.put(newName(fingerPrint.checkSum, fingerPrint.fileName),
-					fingerPrint.fileName);
+			retMap.put(newName(fingerPrint.checkSum, fingerPrint.fileName), fingerPrint.fileName);
 		}
 		return retMap;
 	}
 
-	private StringBuilder revertFileNames(StringBuilder contents,
-			Map<String, String> names) {
+	private StringBuilder revertFileNames(StringBuilder contents, Map<String, String> names) {
 		for (Map.Entry<String, String> name : names.entrySet()) {
 			contents = replaceAll(contents, name.getKey(), name.getValue());
 		}
 		return contents;
 	}
 
-	private StringBuilder replaceAll(StringBuilder builder, String from,
-			String to) {
+	private StringBuilder replaceAll(StringBuilder builder, String from, String to) {
 		int index = builder.indexOf(from);
 		while (index != -1) {
 			builder.replace(index, index + from.length(), to);
@@ -254,8 +239,7 @@ public class FingerPrintTask extends Task implements TaskContainer {
 
 	private StringBuilder contents(File f) throws Exception {
 		StringBuilder buffer = new StringBuilder();
-		BufferedReader fReader = new BufferedReader(new FileReader(f),
-				BUFFER_SIZE);
+		BufferedReader fReader = new BufferedReader(new FileReader(f), BUFFER_SIZE);
 		int c;
 		try {
 			while ((c = fReader.read()) != -1) {
@@ -269,15 +253,13 @@ public class FingerPrintTask extends Task implements TaskContainer {
 
 	private void write(CharSequence contents, File f) throws Exception {
 		log("Writing file : " + f.getAbsolutePath(), Project.MSG_DEBUG);
-		BufferedWriter bWriter = new BufferedWriter(new FileWriter(f),
-				BUFFER_SIZE);
+		BufferedWriter bWriter = new BufferedWriter(new FileWriter(f), BUFFER_SIZE);
 		bWriter.append(contents);
 		bWriter.flush();
 		bWriter.close();
 	}
 
-	private StringBuilder findAndReplace(Pattern pattern,
-			StringBuilder fileContents) throws Exception {
+	private StringBuilder findAndReplace(Pattern pattern, StringBuilder fileContents) throws Exception {
 		StringBuffer replaced = new StringBuffer();
 		Matcher matcher = pattern.matcher(fileContents);
 		String link, fileName, replacement;
@@ -290,17 +272,13 @@ public class FingerPrintTask extends Task implements TaskContainer {
 				fPrint = fingerPrintCache.get(fileName);
 				if (fPrint == null) {
 					resource = new File(docroot, fileName);
-					fPrint = new FingerPrint(fileName, checksum(resource),
-							resource.getAbsolutePath());
+					fPrint = new FingerPrint(fileName, checksum(resource), resource.getAbsolutePath());
 					fingerPrintCache.put(fileName, fPrint);
 					renameResource(resource, fPrint.checkSum);
 				}
 				replacement = newName(fPrint.checkSum, fPrint.fileName);
-				log(String
-						.format("Replacing %s with %s", fileName, replacement),
-						Project.MSG_VERBOSE);
-				matcher.appendReplacement(replaced,
-						"$1" + link.replaceAll(fileName, replacement) + "$3");
+				log(String.format("Replacing %s with %s", fileName, replacement), Project.MSG_VERBOSE);
+				matcher.appendReplacement(replaced, "$1" + link.replaceAll(fileName, replacement) + "$3");
 			}
 		}
 		matcher.appendTail(replaced);
@@ -310,8 +288,7 @@ public class FingerPrintTask extends Task implements TaskContainer {
 	private void renameResource(File file, String checksum) {
 		String folder = dirname(file);
 		File dest = new File(folder, newName(checksum, file.getName()));
-		log(String.format("Renaming file %s to %s", file.getAbsolutePath(),
-				dest.getAbsolutePath()), Project.MSG_DEBUG);
+		log(String.format("Renaming file %s to %s", file.getAbsolutePath(), dest.getAbsolutePath()), Project.MSG_DEBUG);
 		file.renameTo(dest);
 		// delete old file
 		file.delete();
@@ -319,10 +296,8 @@ public class FingerPrintTask extends Task implements TaskContainer {
 
 	private String newName(String checksum, String fileName) {
 		String DOT = ".";
-		String baseName = fileName.contains(DOT) ? fileName.substring(0,
-				fileName.lastIndexOf(DOT)) : fileName;
-		String extension = fileName.contains(DOT) ? fileName.substring(fileName
-				.lastIndexOf(DOT)) : "";
+		String baseName = fileName.contains(DOT) ? fileName.substring(0, fileName.lastIndexOf(DOT)) : fileName;
+		String extension = fileName.contains(DOT) ? fileName.substring(fileName.lastIndexOf(DOT)) : "";
 		// return checksum + fileName;
 		return baseName + checksum + extension;
 	}
@@ -338,16 +313,13 @@ public class FingerPrintTask extends Task implements TaskContainer {
 			return fileVersion;
 		} else {
 			if (!file.exists()) {
-				log(String.format(
-						"File %s does not exists to generate checksum",
-						file.getAbsolutePath()), Project.MSG_WARN);
+				log(String.format("File %s does not exists to generate checksum", file.getAbsolutePath()), Project.MSG_WARN);
 				return "";
 			}
 			CheckedInputStream cis = null;
 			try {
 				// Calculate the CRC-32 checksum of this file
-				cis = new CheckedInputStream(new FileInputStream(file),
-						new CRC32());
+				cis = new CheckedInputStream(new FileInputStream(file), new CRC32());
 				byte[] tempBuf = new byte[128];
 				while (cis.read(tempBuf) >= 0) {
 				}
