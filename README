@@ -1,7 +1,8 @@
 Custom ANT task to fingerprint static resources like CSS, JS, Image files etc. with CRC-32 file checksum to enable dynamic caching
 in web-servers as described in https://developers.google.com/speed/docs/best-practices/caching,
 the task will take care of reverting file changes and resource name changes back to original after executing child tasks
-like WAR, static content TAR creation etc.
+like WAR, static content TAR creation etc. If it is desired to use a specific value such as a build or version number instead
+of a checksum, it can be passed in as a "fileVersion" property. If the fileVersion property is omitted, a checksum will be used.
 
 Declaration in build.xml
 
@@ -11,7 +12,7 @@ Declaration in build.xml
 Usage in tasks
 
         <target name="execute" depends="declare">
-                <fingerprint docroot="${PROJECT_ROOT}/docroot" extensions="js,css" enabled="true/false">
+                <fingerprint docroot="${PROJECT_ROOT}/docroot" extensions="js,css" enabled="true/false" [fileVersion="${customTagValue}"]>
                         <fileset dir="${PROJECT_ROOT}">
                                 <include name="...."/>
                                 <include name="...."/>
