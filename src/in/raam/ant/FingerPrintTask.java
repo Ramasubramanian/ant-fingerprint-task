@@ -11,55 +11,65 @@ import org.apache.tools.ant.*;
 import org.apache.tools.ant.types.FileSet;
 
 /**
- * Custom ANT task to fingerprint static resources like CSS, JS, Image files etc. with file checksums
- * to enable dynamic caching in web-servers as described in https://developers.google.com/speed/docs/best-practices/caching, 
- * the task will take of reverting file changes and resource name changes back to original after child tasks 
- * like WAR, static content TAR creation is completed
- * <br/>
+ * Original Source: https://github.com/Ramasubramanian/ant-fingerprint-task
+ * Custom ANT task to fingerprint static resources like CSS, JS, Image files
+ * etc. with file checksums to enable dynamic caching in web-servers as
+ * described in https://developers.google.com/speed/docs/best-practices/caching,
+ * the task will take of reverting file changes and resource name changes back
+ * to original after child tasks like WAR, static content TAR creation is
+ * completed <br/>
  * <b>Declaration in build.xml</b>
+ * 
  * <pre>
-      	&lt;taskdef name="fingerprint" classname="in.raam.ant.FingerPrintTask" classpath="${CLASSPATH}/ant-fingerprint.jar"/>
+ *       	&lt;taskdef name="fingerprint" classname="in.raam.ant.FingerPrintTask" classpath="${CLASSPATH}/ant-fingerprint.jar"/>
  * </pre>
+ * 
  * <b>Usage in tasks</b>
-	<pre>
-	&lt;target name="execute" depends="declare">
-		&lt;fingerprint docroot="${PROJECT_ROOT}/docroot" extensions="js,css">
-			&lt;fileset dir="${PROJECT_ROOT}">
-				&lt;include name="...."/>
-				&lt;include name="...."/>
-				&lt;exclude name="...."/>
-			&lt;fileset>
-			&lt;!--Child tasks like WAR and TAR creation-->	
-			.
-			.
-			.			
-		&lt;/fingerprint>		
-	&lt;/target>	
- *	</pre>
- * Patterns for extracting static resource references used from https://code.google.com/p/maven-fingerprint-plugin 
+ * 
+ * <pre>
+ * 	&lt;target name="execute" depends="declare">
+ * 		&lt;fingerprint docroot="${PROJECT_ROOT}/docroot" extensions="js,css">
+ * 			&lt;fileset dir="${PROJECT_ROOT}">
+ * 				&lt;include name="...."/>
+ * 				&lt;include name="...."/>
+ * 				&lt;exclude name="...."/>
+ * 			&lt;fileset>
+ * 			&lt;!--Child tasks like WAR and TAR creation-->	
+ * 			.
+ * 			.
+ * 			.			
+ * 		&lt;/fingerprint>		
+ * 	&lt;/target>
+ * </pre>
+ * 
+ * Patterns for extracting static resource references used from
+ * https://code.google.com/p/maven-fingerprint-plugin
+ * 
  * @author raam
- *
+ * 
+ *         Modified 12/18/2013 - Barry M. Tofteland - added try/finally and
+ *         option to specify fingerprint value to be used instead of checksum.
+ *         Also moved fingerprint to end of file name.
+ * 
  */
 public class FingerPrintTask extends Task implements TaskContainer {
 
-	static class FingerPrint {		
+	static class FingerPrint {
 		final String fileName;
 		final String checkSum;
 		final String absoluteName;
-		
+
 		FingerPrint(String fileName, String checkSum, String absoluteName) {
 			this.fileName = fileName;
 			this.checkSum = checkSum;
 			this.absoluteName = absoluteName;
-		}		
+		}
 	}
-	
+
 	private static final String FS = File.separator;
-	private static final int BUFFER_SIZE = 1024 * 8; //8 KB	
-	private static final Pattern[] PATTERNS = { 
-			Pattern.compile("(<link.*?href=\")(.*?)(\".*?>)"),
-			Pattern.compile("(\")([^\\s]*?\\.js)(\")"), 
-			Pattern.compile("(<img.*?src=\")(.*?)(\".*?>)"),
+	private static final int BUFFER_SIZE = 1024 * 8; // 8 KB
+	private static final Pattern[] PATTERNS = { Pattern.compile("(<link.*?href=\")(.*?)(\".*?>)"),
+			Pattern.compile("(\")([^\\s]*?\\.js)(\")"), Pattern.compile("(<img.*?src=\")(.*?)(\".*?>)"),
 			Pattern.compile("(url\\(\")(.*?)(\"\\))") };
 
 	private String docroot;
@@ -67,8 +77,9 @@ public class FingerPrintTask extends Task implements TaskContainer {
 	private boolean enabled = true;
 	private List<FileSet> fileSets = new ArrayList<FileSet>();
 	private List<Task> childTasks = new ArrayList<Task>();
-	private Map<String, FingerPrint> fingerPrintCache = new HashMap<String, FingerPrint>(); 
-	
+	private Map<String, FingerPrint> fingerPrintCache = new HashMap<String, FingerPrint>();
+	private String fileVersion;// optional to use instead of checksum
+
 	public boolean isEnabled() {
 		return enabled;
 	}
@@ -86,7 +97,7 @@ public class FingerPrintTask extends Task implements TaskContainer {
 	}
 
 	public void setExtensions(String extensions) {
-		this.extensions = extensions.split(",\\s*");		
+		this.extensions = extensions.split(",\\s*");
 	}
 
 	public String getDocroot() {
@@ -102,21 +113,24 @@ public class FingerPrintTask extends Task implements TaskContainer {
 	}
 
 	public void execute() throws BuildException {
-		log("Fingerprinting enabled : "+enabled);
-		if(enabled) {
-			// identify used static resources and fingerprint them
-			log("Starting fingerprinting of used static resources!", Project.MSG_INFO);
-			doExecute();
-			logResourceNames();
-		}
-		log("Executing child tasks!", Project.MSG_INFO);
-		// execute child tasks
-		for (Task childTask : childTasks) {
-			childTask.perform();
-		}
-		if(enabled) {
-			// post process - change and rename files back to original state
-			postExecute();
+		log("Fingerprinting enabled : " + enabled);
+		try {
+			if (enabled) {
+				// identify used static resources and fingerprint them
+				log("Starting fingerprinting of used static resources!", Project.MSG_INFO);
+				doExecute();
+				logResourceNames();
+			}
+			log("Executing child tasks!", Project.MSG_INFO);
+			// execute child tasks
+			for (Task childTask : childTasks) {
+				childTask.perform();
+			}
+		} finally {
+			if (enabled) {
+				// post process - change and rename files back to original state
+				postExecute();
+			}
 		}
 	}
 
@@ -190,7 +204,7 @@ public class FingerPrintTask extends Task implements TaskContainer {
 		for (FingerPrint fingerPrint : fingerPrintCache.values()) {
 			newResource = new File(fingerPrint.absoluteName);
 			folder = dirname(newResource);
-			resource = new File(folder, fingerPrint.checkSum + fingerPrint.fileName);
+			resource = new File(folder, newName(fingerPrint.checkSum, fingerPrint.fileName));
 			log(String.format("Renaming file %s to %s", resource.getAbsolutePath(), newResource.getAbsolutePath()), Project.MSG_DEBUG);
 			resource.renameTo(newResource);
 			// delete old file
@@ -201,7 +215,7 @@ public class FingerPrintTask extends Task implements TaskContainer {
 	private Map<String, String> prepareRevertNameMapping(Map<String, FingerPrint> fingerPrintCache) {
 		Map<String, String> retMap = new HashMap<String, String>();
 		for (FingerPrint fingerPrint : fingerPrintCache.values()) {
-			retMap.put(fingerPrint.checkSum + fingerPrint.fileName, fingerPrint.fileName);
+			retMap.put(newName(fingerPrint.checkSum, fingerPrint.fileName), fingerPrint.fileName);
 		}
 		return retMap;
 	}
@@ -255,14 +269,14 @@ public class FingerPrintTask extends Task implements TaskContainer {
 			link = matcher.group(2);
 			if (replaceable(link)) {
 				fileName = fileName(link);
-				fPrint = fingerPrintCache.get(link);
+				fPrint = fingerPrintCache.get(fileName);
 				if (fPrint == null) {
-					resource = new File(docroot, link);
+					resource = new File(docroot, fileName);
 					fPrint = new FingerPrint(fileName, checksum(resource), resource.getAbsolutePath());
-					fingerPrintCache.put(link, fPrint);
+					fingerPrintCache.put(fileName, fPrint);
 					renameResource(resource, fPrint.checkSum);
 				}
-				replacement = fPrint.checkSum + fPrint.fileName;
+				replacement = newName(fPrint.checkSum, fPrint.fileName);
 				log(String.format("Replacing %s with %s", fileName, replacement), Project.MSG_VERBOSE);
 				matcher.appendReplacement(replaced, "$1" + link.replaceAll(fileName, replacement) + "$3");
 			}
@@ -281,7 +295,11 @@ public class FingerPrintTask extends Task implements TaskContainer {
 	}
 
 	private String newName(String checksum, String fileName) {
-		return checksum + fileName;
+		String DOT = ".";
+		String baseName = fileName.contains(DOT) ? fileName.substring(0, fileName.lastIndexOf(DOT)) : fileName;
+		String extension = fileName.contains(DOT) ? fileName.substring(fileName.lastIndexOf(DOT)) : "";
+		// return checksum + fileName;
+		return baseName + checksum + extension;
 	}
 
 	private String dirname(File file) {
@@ -290,20 +308,26 @@ public class FingerPrintTask extends Task implements TaskContainer {
 	}
 
 	private String checksum(File file) throws Exception {
-        if(!file.exists()) {
-            log(String.format("File %s does not exists to generate checksum",file.getAbsolutePath()),Project.MSG_WARN);
-            return "";
-        }
-		CheckedInputStream cis = null;
-		try {
-			// Calculate the CRC-32 checksum of this file
-			cis = new CheckedInputStream(new FileInputStream(file), new CRC32());
-			byte[] tempBuf = new byte[128];
-			while (cis.read(tempBuf) >= 0) {}
-			Long checksum = cis.getChecksum().getValue();
-			return checksum.toString();
-		} finally {
-			cis.close();
+
+		if (fileVersion != null) {
+			return fileVersion;
+		} else {
+			if (!file.exists()) {
+				log(String.format("File %s does not exists to generate checksum", file.getAbsolutePath()), Project.MSG_WARN);
+				return "";
+			}
+			CheckedInputStream cis = null;
+			try {
+				// Calculate the CRC-32 checksum of this file
+				cis = new CheckedInputStream(new FileInputStream(file), new CRC32());
+				byte[] tempBuf = new byte[128];
+				while (cis.read(tempBuf) >= 0) {
+				}
+				Long checksum = cis.getChecksum().getValue();
+				return checksum.toString();
+			} finally {
+				cis.close();
+			}
 		}
 	}
 
@@ -321,4 +345,20 @@ public class FingerPrintTask extends Task implements TaskContainer {
 		return arr[arr.length - 1];
 	}
 
+	/**
+	 * The file version will be used instead of a checksum if it is set.
+	 * 
+	 * @param fileVersion
+	 *            the fileVersion to set
+	 */
+	public void setFileVersion(String fileVersion) {
+		this.fileVersion = fileVersion;
+	}
+
+	/**
+	 * @return the fileVersion
+	 */
+	public String getFileVersion() {
+		return fileVersion;
+	}
 }
